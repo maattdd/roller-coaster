@@ -1,5 +1,4 @@
 import fs = require('fs');
-import { ExitStatus } from 'typescript';
 
 type gameSetting = {
 	Lplaces: number,
@@ -22,7 +21,7 @@ let parseInput = (filename: string): gameSetting => {
 		Ctimes = c;
 		Ngroups = n;
 	});
-	// remove first line
+	// remove first line of the sample
 	lines.shift();
 	// parse the rest (could use a map)
 	for (let i = 0; i < Ngroups; i++) {
@@ -37,26 +36,39 @@ let parseInput = (filename: string): gameSetting => {
 let runGame = (settings: gameSetting) => {
 	let earned = 0;
 	let queueIdx = 0;
+	let cache = {}
+
+	// Need to store a range to avoid iterating one-by-one (for performance)
 	for (let i = 0; i < settings.Ctimes; i++) {
-		let personsLoaded = 0;
-
-		// load the groups into the rollercoaster
-		for (let j = 0; j < settings.Ngroups; j++) {
-			const idx = (queueIdx + j) % settings.Ngroups;
-			if (personsLoaded + settings.groupSizes[idx] > settings.Lplaces) {
-				// can't load more, start the rollercoaster and store queue index
-				queueIdx = idx
-				break;
-			} else {
-				personsLoaded += settings.groupSizes[idx];
+		let cached = cache[queueIdx];
+		if (cached !== undefined) {
+			//console.log(cached)
+			earned += cached['earnedAfter'];
+			queueIdx = cached['indexAter'];
+		} else {
+			let personsLoaded = 0;
+			let j = 0;
+			let idx = 0;
+			// load the groups into the rollercoaster
+			for (; j < settings.Ngroups; j++) {
+				idx = (queueIdx + j) % settings.Ngroups;
+				if (personsLoaded + settings.groupSizes[idx] > settings.Lplaces) {
+					break;
+				} else {
+					personsLoaded += settings.groupSizes[idx];
+				}
 			}
-		}
+			// can't load more, start the rollercoaster and store queue index
+			cache[queueIdx] = { 'earnedAfter': personsLoaded, 'indexAfter': idx };
+			queueIdx = idx
 
-		// cumulate earnings
-		earned += personsLoaded;
+			// cumulate earnings
+			earned += personsLoaded;
+		}
 	}
 	return earned
 }
+
 
 let samples = {
 	'1_simple_case': 7,
@@ -73,12 +85,9 @@ let samples = {
 for (const [filename, expectedResult] of Object.entries(samples)) {
 	let settings = parseInput('./samples/' + filename + '.txt');
 	let result = runGame(settings);
-	//console.debug(`${filename}: ${JSON.stringify(settings)} => ${results}`);
 	if (result != expectedResult) {
-		console.error(`${filename}: ${JSON.stringify(settings)} => ${result} != ${expectedResult}`);
+		console.error(`Failed ${filename}: => ${result} != ${expectedResult}`);
 	} else {
-		console.log(`Test ${filename} ok => ${result}`);
-
+		console.log(`Ok ${filename} => ${result}`);
 	}
-	//console.debug(`${filename}: ${JSON.stringify(settings)} => ${results}`);
 }
