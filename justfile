@@ -1,2 +1,2 @@
-test:
-  npx jest
+run:
+  npx ts-node main.ts
